@@ -3,7 +3,9 @@ const router = express.Router();
 const Appointment = require("../models/Appointment");
 const TimeSlot = require("../models/TimeSlot");
 const Professional = require("../models/Professional");
+const Salon = require("../models/Salon");
 const dayjs = require("dayjs");
+const notificationService = require("../services/notificationService");
 
 // 🔧 FIXED: Handle undefined/empty duration strings
 const durationToMinutes = (durationStr) => {
@@ -226,6 +228,64 @@ router.post("/", async (req, res) => {
       })
     );
 
+    console.log(`✅ ${savedAppointments.length} appointments created successfully`);
+
+    // Send notifications for all created appointments
+    try {
+      console.log('📧 Sending notifications...');
+      
+      // Get salon information for notifications
+      const firstAppointment = savedAppointments[0];
+      const salon = await Salon.findById(firstAppointment.salonId);
+      
+      if (!salon) {
+        console.log('⚠️ Salon not found for notifications');
+      } else {
+        // Send customer confirmation for each appointment
+        for (const appointment of savedAppointments) {
+          const notificationData = {
+            customerEmail: email,
+            customerPhone: phone,
+            customerName: appointment.user.name || name || 'Guest',
+            salonName: salon.name,
+            serviceName: appointment.services[0]?.name || 'Service',
+            date: dayjs(appointment.date).format('MMMM DD, YYYY'),
+            time: appointment.startTime,
+            totalAmount: appointment.services[0]?.price || 0,
+            appointmentId: appointment._id.toString().slice(-6).toUpperCase()
+          };
+
+          // Send confirmation to customer
+          const confirmationResult = await notificationService.sendAppointmentConfirmation(notificationData);
+          console.log('📧 Customer notification result:', confirmationResult);
+
+          // Send notification to salon owner
+          if (salon.email) {
+            const ownerNotificationData = {
+              ownerEmail: salon.email,
+              ownerName: salon.name,
+              salonName: salon.name,
+              customerName: appointment.user.name || name || 'Guest',
+              serviceName: appointment.services[0]?.name || 'Service',
+              date: dayjs(appointment.date).format('MMMM DD, YYYY'),
+              time: appointment.startTime,
+              totalAmount: appointment.services[0]?.price || 0,
+              customerPhone: phone
+            };
+
+            const ownerNotificationResult = await notificationService.notifyOwnerNewBooking(
+              { ownerEmail: salon.email, ownerName: salon.name, salonName: salon.name },
+              ownerNotificationData
+            );
+            console.log('📧 Owner notification result:', ownerNotificationResult);
+          }
+        }
+      }
+    } catch (notificationError) {
+      console.error('❌ Notification error:', notificationError);
+      // Don't fail the appointment creation if notifications fail
+    }
+
     res.status(201).json({ 
       success: true, 
       message: "Appointments created successfully",
@@ -292,9 +352,34 @@ router.patch("/:id/status", async (req, res) => {
       req.params.id,
       { status },
       { new: true }
-    );
+    ).populate('salonId');
 
     if (!updated) return res.status(404).json({ message: "Appointment not found" });
+
+    // Send confirmation email when appointment is confirmed
+    if (status === "confirmed" && updated.user?.email) {
+      try {
+        console.log('📧 Sending confirmation notification for appointment:', updated._id);
+        
+        const notificationData = {
+          customerEmail: updated.user.email,
+          customerPhone: updated.user.phone,
+          customerName: updated.user.name || 'Guest',
+          salonName: updated.salonId?.name || 'Salon',
+          serviceName: updated.services[0]?.name || 'Service',
+          date: dayjs(updated.date).format('MMMM DD, YYYY'),
+          time: updated.startTime,
+          totalAmount: updated.services[0]?.price || 0,
+          appointmentId: updated._id.toString().slice(-6).toUpperCase()
+        };
+
+        const confirmationResult = await notificationService.sendAppointmentConfirmation(notificationData);
+        console.log('📧 Confirmation notification result:', confirmationResult);
+      } catch (notificationError) {
+        console.error('❌ Confirmation notification error:', notificationError);
+        // Don't fail the status update if notification fails
+      }
+    }
 
     if (status === "cancelled") {
       await TimeSlot.updateMany(
@@ -425,6 +510,41 @@ router.patch("/:id/reschedule", async (req, res) => {
       success: false, 
       message: "Failed to reschedule appointment",
       error: err.message 
+    });
+  }
+});
+
+// 📧 Test notification endpoint
+router.post("/test-notification", async (req, res) => {
+  try {
+    console.log('🧪 Testing notification service...');
+    
+    const testData = {
+      customerEmail: 'test@example.com',
+      customerPhone: '+1234567890',
+      customerName: 'Test Customer',
+      salonName: 'Test Salon',
+      serviceName: 'Test Service',
+      date: 'December 25, 2024',
+      time: '10:00 AM',
+      totalAmount: 50,
+      appointmentId: 'TEST123'
+    };
+
+    const result = await notificationService.sendAppointmentConfirmation(testData);
+    console.log('🧪 Test notification result:', result);
+    
+    res.json({ 
+      success: true, 
+      message: 'Test notification sent successfully',
+      result: result 
+    });
+  } catch (error) {
+    console.error('❌ Test notification failed:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Test notification failed',
+      error: error.message 
     });
   }
 });

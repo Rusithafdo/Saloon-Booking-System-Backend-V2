@@ -24,17 +24,44 @@ const loyaltyRoutes = require("./routes/loyaltyRoutes");
 // Initialize Express app
 const app = express();
 
+// CORS Configuration
+const allowedOrigins = [
+  'http://localhost:3000', // Local development
+  'https://saloon-booking-system-frontend-web-eight.vercel.app', // Your actual Vercel URL
+  'https://saloon-booking-system-frontend-web-v2.vercel.app', // Alternative domain pattern
+];
+
+// Add production frontend URL from environment variable
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL);
+}
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list or matches Vercel pattern
+    if (allowedOrigins.includes(origin) || origin.includes('vercel.app')) {
+      return callback(null, true);
+    }
+    
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-requested-with'],
+  optionsSuccessStatus: 200 // Some legacy browsers choke on 204
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.json({ limit: "10mb" })); // handle JSON
 app.use(express.urlencoded({ extended: true, limit: "10mb" })); // handle form data
 
 // MongoDB Connection
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
+mongoose.connect(process.env.MONGO_URI)
 .then(() => console.log("✅ MongoDB connected"))
 .catch((err) => console.error("❌ MongoDB connection error:", err));
 
@@ -65,6 +92,14 @@ try {
   console.log('❌ Failed to load payment routes:', error.message);
 }
 
+// CORS test route
+app.get('/api/test', (req, res) => {
+  res.json({ 
+    message: '✅ CORS is working!', 
+    origin: req.headers.origin,
+    timestamp: new Date().toISOString()
+  });
+});
 
 // Default route
 app.get('/', (req, res) => {

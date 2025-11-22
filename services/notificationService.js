@@ -1,98 +1,29 @@
 const nodemailer = require('nodemailer');
 const twilio = require('twilio');
 
-// Check if SendGrid is available
-let sendgridMail = null;
-try {
-  sendgridMail = require('@sendgrid/mail');
-  console.log('📧 SendGrid available for email service');
-} catch (error) {
-  console.log('📧 SendGrid not installed, using SMTP fallback');
-}
-
-// Email transporter configuration with multiple fallbacks
+// Simple Gmail SMTP configuration
 const createEmailTransporter = () => {
-  // If SendGrid API key is available, configure SendGrid
-  if (process.env.SENDGRID_API_KEY && sendgridMail) {
-    try {
-      sendgridMail.setApiKey(process.env.SENDGRID_API_KEY);
-      console.log('📧 Using SendGrid for email service');
-      return { type: 'sendgrid', client: sendgridMail };
-    } catch (error) {
-      console.error('❌ SendGrid configuration failed:', error);
-    }
+  try {
+    console.log('📧 Creating simple Gmail SMTP transporter...');
+    
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER || 'saloonbookingsystem@gmail.com',
+        pass: process.env.EMAIL_PASSWORD || 'buvl bjbt lfom zijs'
+      },
+      // Simple configuration for better compatibility
+      pool: true,
+      maxConnections: 1,
+      maxMessages: 3
+    });
+
+    console.log('📧 Gmail SMTP transporter created successfully');
+    return transporter;
+  } catch (error) {
+    console.error('❌ Gmail SMTP configuration failed:', error);
+    return null;
   }
-
-  // Fallback to SMTP with multiple configurations
-  const smtpConfigs = [
-    {
-      name: 'Gmail SSL',
-      config: {
-        service: 'gmail',
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
-        auth: {
-          user: process.env.EMAIL_USER || 'saloonbookingsystem@gmail.com',
-          pass: process.env.EMAIL_PASSWORD || 'buvl bjbt lfom zijs'
-        },
-        tls: { rejectUnauthorized: false },
-        connectionTimeout: 30000,
-        greetingTimeout: 15000,
-        socketTimeout: 30000
-      }
-    },
-    {
-      name: 'Gmail TLS',
-      config: {
-        host: 'smtp.gmail.com',
-        port: 587,
-        secure: false,
-        requireTLS: true,
-        auth: {
-          user: process.env.EMAIL_USER || 'saloonbookingsystem@gmail.com',
-          pass: process.env.EMAIL_PASSWORD || 'buvl bjbt lfom zijs'
-        },
-        tls: { 
-          ciphers: 'SSLv3',
-          rejectUnauthorized: false 
-        },
-        connectionTimeout: 30000,
-        greetingTimeout: 15000,
-        socketTimeout: 30000
-      }
-    },
-    {
-      name: 'Gmail Basic',
-      config: {
-        host: 'smtp.gmail.com',
-        port: 25,
-        secure: false,
-        auth: {
-          user: process.env.EMAIL_USER || 'saloonbookingsystem@gmail.com',
-          pass: process.env.EMAIL_PASSWORD || 'buvl bjbt lfom zijs'
-        },
-        ignoreTLS: false,
-        tls: { rejectUnauthorized: false },
-        connectionTimeout: 20000,
-        greetingTimeout: 10000,
-        socketTimeout: 20000
-      }
-    }
-  ];
-
-  for (const { name, config } of smtpConfigs) {
-    try {
-      console.log(`📧 Trying ${name} SMTP configuration...`);
-      const transporter = nodemailer.createTransport(config);
-      return { type: 'smtp', client: transporter, name };
-    } catch (error) {
-      console.log(`❌ ${name} configuration failed:`, error.message);
-    }
-  }
-
-  console.error('❌ All email configurations failed');
-  return null;
 };
 
 // Twilio client configuration
@@ -517,19 +448,15 @@ const smsTemplates = {
 class NotificationService {
   constructor() {
     try {
-      this.emailService = createEmailTransporter();
-      if (this.emailService) {
-        if (this.emailService.type === 'sendgrid') {
-          console.log('📧 SendGrid email service initialized');
-        } else if (this.emailService.type === 'smtp') {
-          console.log(`📧 SMTP email service initialized (${this.emailService.name})`);
-        }
+      this.emailTransporter = createEmailTransporter();
+      if (this.emailTransporter) {
+        console.log('📧 Email service initialized successfully');
       } else {
-        console.log('⚠️ No email service available');
+        console.log('⚠️ Email service not available');
       }
     } catch (error) {
       console.error('❌ Email service initialization failed:', error);
-      this.emailService = null;
+      this.emailTransporter = null;
     }
 
     try {
@@ -555,9 +482,9 @@ class NotificationService {
     }
   }
 
-  // Send email notification with multiple service support
+  // Simple email sending with Gmail SMTP
   async sendEmail(to, template, data) {
-    if (!this.emailService) {
+    if (!this.emailTransporter) {
       console.log('⚠️ Email service not available, skipping email');
       return { success: false, error: 'Email service not configured' };
     }
@@ -565,74 +492,23 @@ class NotificationService {
     try {
       const emailContent = emailTemplates[template](data);
       
-      if (this.emailService.type === 'sendgrid') {
-        // Use SendGrid
-        const msg = {
-          to: to,
-          from: {
-            email: process.env.EMAIL_USER || 'saloonbookingsystem@gmail.com',
-            name: 'Salon Booking System'
-          },
-          subject: emailContent.subject,
-          text: emailContent.text,
-          html: emailContent.html
-        };
+      const mailOptions = {
+        from: `"Salon Booking System" <${process.env.EMAIL_USER || 'saloonbookingsystem@gmail.com'}>`,
+        to: to,
+        subject: emailContent.subject,
+        text: emailContent.text,
+        html: emailContent.html
+      };
 
-        console.log(`📧 Sending ${template} email via SendGrid to: ${to}`);
-        const result = await this.emailService.client.send(msg);
-        console.log('✅ Email sent successfully via SendGrid');
-        return { success: true, messageId: result[0].headers['x-message-id'] };
-        
-      } else if (this.emailService.type === 'smtp') {
-        // Use SMTP
-        const mailOptions = {
-          from: {
-            name: 'Salon Booking System',
-            address: process.env.EMAIL_USER || 'saloonbookingsystem@gmail.com'
-          },
-          to: to,
-          subject: emailContent.subject,
-          text: emailContent.text,
-          html: emailContent.html
-        };
-
-        console.log(`📧 Sending ${template} email via SMTP (${this.emailService.name}) to: ${to}`);
-        const result = await this.emailService.client.sendMail(mailOptions);
-        console.log('✅ Email sent successfully via SMTP:', result.messageId);
-        return { success: true, messageId: result.messageId };
-      }
+      console.log(`📧 Sending ${template} email to: ${to}`);
       
-      return { success: false, error: 'Unknown email service type' };
+      // Use the simple transporter directly
+      const result = await this.emailTransporter.sendMail(mailOptions);
+      console.log('✅ Email sent successfully:', result.messageId);
+      return { success: true, messageId: result.messageId };
+      
     } catch (error) {
       console.error('❌ Email sending failed:', error);
-      
-      // If SMTP fails, try to create a new transporter as fallback
-      if (this.emailService.type === 'smtp' && error.code === 'ETIMEDOUT') {
-        console.log('🔄 SMTP timeout, attempting to recreate transporter...');
-        try {
-          this.emailService = createEmailTransporter();
-          if (this.emailService && this.emailService.type === 'smtp') {
-            console.log('🔄 Retrying email with new transporter...');
-            const emailContent = emailTemplates[template](data);
-            const mailOptions = {
-              from: {
-                name: 'Salon Booking System',
-                address: process.env.EMAIL_USER || 'saloonbookingsystem@gmail.com'
-              },
-              to: to,
-              subject: emailContent.subject,
-              text: emailContent.text,
-              html: emailContent.html
-            };
-            const result = await this.emailService.client.sendMail(mailOptions);
-            console.log('✅ Email sent successfully on retry:', result.messageId);
-            return { success: true, messageId: result.messageId };
-          }
-        } catch (retryError) {
-          console.error('❌ Retry also failed:', retryError.message);
-        }
-      }
-      
       return { success: false, error: error.message };
     }
   }

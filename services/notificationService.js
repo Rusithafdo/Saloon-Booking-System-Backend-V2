@@ -1,24 +1,33 @@
 const nodemailer = require('nodemailer');
 const twilio = require('twilio');
 
-// Simple Gmail SMTP configuration
+// Enhanced Gmail SMTP configuration for production
 const createEmailTransporter = () => {
   try {
-    console.log('📧 Creating simple Gmail SMTP transporter...');
+    console.log('📧 Creating enhanced Gmail SMTP transporter...');
     
     const transporter = nodemailer.createTransport({
       service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false, // Use STARTTLS
       auth: {
         user: process.env.EMAIL_USER || 'saloonbookingsystem@gmail.com',
         pass: process.env.EMAIL_PASSWORD || 'buvl bjbt lfom zijs'
       },
-      // Simple configuration for better compatibility
-      pool: true,
+      tls: {
+        rejectUnauthorized: false,
+        ciphers: 'SSLv3'
+      },
+      connectionTimeout: 60000, // 60 seconds
+      greetingTimeout: 30000, // 30 seconds
+      socketTimeout: 60000, // 60 seconds
+      pool: false, // Disable pooling for better compatibility
       maxConnections: 1,
-      maxMessages: 3
+      maxMessages: 1
     });
 
-    console.log('📧 Gmail SMTP transporter created successfully');
+    console.log('📧 Enhanced Gmail SMTP transporter created successfully');
     return transporter;
   } catch (error) {
     console.error('❌ Gmail SMTP configuration failed:', error);
@@ -450,7 +459,7 @@ class NotificationService {
     try {
       this.emailTransporter = createEmailTransporter();
       if (this.emailTransporter) {
-        console.log('📧 Email service initialized successfully');
+        console.log('📧 Gmail email service initialized successfully');
       } else {
         console.log('⚠️ Email service not available');
       }
@@ -470,19 +479,37 @@ class NotificationService {
     }
   }
 
-  // Test email connection
+  // Test email connection with enhanced error handling
   async testEmailConnection() {
+    if (!this.emailTransporter) {
+      console.log('❌ No email transporter available');
+      return false;
+    }
+    
     try {
+      console.log('🔍 Testing Gmail SMTP connection...');
       await this.emailTransporter.verify();
-      console.log('✅ Email service is ready');
+      console.log('✅ Gmail SMTP connection successful');
       return true;
     } catch (error) {
-      console.error('❌ Email service error:', error.message);
+      console.error('❌ Gmail SMTP connection failed:', {
+        message: error.message,
+        code: error.code,
+        command: error.command
+      });
+      
+      // Log specific error types
+      if (error.code === 'ETIMEDOUT') {
+        console.log('🚫 Connection timeout - SMTP ports may be blocked by hosting provider');
+      } else if (error.code === 'ECONNREFUSED') {
+        console.log('🚫 Connection refused - SMTP server not reachable');
+      }
+      
       return false;
     }
   }
 
-  // Simple email sending with Gmail SMTP
+  // Enhanced Gmail email sending with better error handling
   async sendEmail(to, template, data) {
     if (!this.emailTransporter) {
       console.log('⚠️ Email service not available, skipping email');
@@ -501,15 +528,32 @@ class NotificationService {
       };
 
       console.log(`📧 Sending ${template} email to: ${to}`);
+      console.log('🔧 Mail options:', {
+        from: mailOptions.from,
+        to: mailOptions.to,
+        subject: mailOptions.subject
+      });
       
-      // Use the simple transporter directly
       const result = await this.emailTransporter.sendMail(mailOptions);
-      console.log('✅ Email sent successfully:', result.messageId);
-      return { success: true, messageId: result.messageId };
+      console.log('✅ Email sent successfully via Gmail:', result.messageId);
+      return { success: true, messageId: result.messageId, service: 'Gmail' };
       
     } catch (error) {
-      console.error('❌ Email sending failed:', error);
-      return { success: false, error: error.message };
+      console.error('❌ Gmail email sending failed:', {
+        message: error.message,
+        code: error.code,
+        command: error.command,
+        response: error.response
+      });
+
+      // Provide helpful error messages
+      if (error.code === 'ETIMEDOUT') {
+        console.log('💡 Suggestion: SMTP ports may be blocked. Consider using SendGrid for production.');
+      } else if (error.responseCode === 535) {
+        console.log('💡 Suggestion: Check Gmail app password or enable 2-factor authentication.');
+      }
+      
+      return { success: false, error: error.message, code: error.code };
     }
   }
 

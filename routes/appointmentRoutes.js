@@ -3,7 +3,9 @@ const router = express.Router();
 const Appointment = require("../models/Appointment");
 const TimeSlot = require("../models/TimeSlot");
 const Professional = require("../models/Professional");
+const Salon = require("../models/Salon");
 const dayjs = require("dayjs");
+const notificationService = require("../services/notificationService");
 
 // 🔧 FIXED: Handle undefined/empty duration strings
 const durationToMinutes = (durationStr) => {
@@ -82,20 +84,67 @@ generateWeeklyTimeSlots();
 // ✅ GET appointments by salonId with optional filters
 router.get("/salon/:id", async (req, res) => {
   try {
+    const salonId = req.params.id;
     const { date, professionalId } = req.query;
-    const query = { salonId: req.params.id };
+    
+    console.log(`🔍 Fetching appointments for salon: ${salonId}`);
+    console.log(`📅 Date filter: ${date || 'none'}`);
+    console.log(`👨‍💼 Professional filter: ${professionalId || 'none'}`);
+    
+    const query = { salonId: salonId };
     if (date) query.date = date;
     if (professionalId) query.professionalId = professionalId;
+
+    console.log('🔎 Query object:', JSON.stringify(query));
 
     const appointments = await Appointment.find(query)
       .sort({ date: 1, startTime: 1 })
       .populate("salonId")
       .populate("professionalId");
 
+    console.log(`✅ Found ${appointments.length} appointments for salon ${salonId}`);
+
     res.json(appointments);
   } catch (err) {
     console.error("❌ Error fetching appointments:", err);
-    res.status(500).json({ message: "Failed to fetch appointments" });
+    res.status(500).json({ message: "Failed to fetch appointments", error: err.message });
+  }
+});
+
+// 🧪 Test route to check all appointments in database
+router.get("/test/all", async (req, res) => {
+  try {
+    console.log("🧪 Testing database connection...");
+    
+    const allAppointments = await Appointment.find();
+    const totalCount = await Appointment.countDocuments();
+    
+    console.log(`📊 Total appointments in database: ${totalCount}`);
+    
+    // Group by salonId for debugging
+    const bySalon = {};
+    allAppointments.forEach(appt => {
+      const salonId = appt.salonId?.toString() || 'unknown';
+      if (!bySalon[salonId]) bySalon[salonId] = 0;
+      bySalon[salonId]++;
+    });
+    
+    console.log('📊 Appointments by salon:', bySalon);
+    
+    res.json({
+      total: totalCount,
+      bySalon,
+      sample: allAppointments.slice(0, 3).map(a => ({
+        id: a._id,
+        salonId: a.salonId,
+        date: a.date,
+        status: a.status,
+        user: a.user?.name
+      }))
+    });
+  } catch (err) {
+    console.error("❌ Test route error:", err);
+    res.status(500).json({ message: "Test failed", error: err.message });
   }
 });
 
@@ -179,6 +228,86 @@ router.post("/", async (req, res) => {
       })
     );
 
+    console.log(`✅ ${savedAppointments.length} appointments created successfully`);
+
+    // Send notifications for all created appointments
+    try {
+      console.log('📧 Starting notification process...');
+      console.log('📧 Email provided:', email);
+      console.log('📧 Phone provided:', phone);
+      
+      // Get salon information for notifications
+      const firstAppointment = savedAppointments[0];
+      console.log('📧 First appointment:', firstAppointment.salonId);
+      
+      const salon = await Salon.findById(firstAppointment.salonId);
+      console.log('📧 Salon found:', salon ? salon.name : 'Not found');
+      
+      if (!salon) {
+        console.log('⚠️ Salon not found for notifications');
+      } else {
+        console.log('📧 Processing notifications for', savedAppointments.length, 'appointments');
+        
+        // Send customer confirmation for each appointment
+        for (const appointment of savedAppointments) {
+          console.log('📧 Processing notification for appointment:', appointment._id);
+          
+          const notificationData = {
+            customerEmail: email,
+            customerPhone: phone,
+            customerName: appointment.user.name || name || 'Guest',
+            salonName: salon.name,
+            serviceName: appointment.services[0]?.name || 'Service',
+            date: dayjs(appointment.date).format('MMMM DD, YYYY'),
+            time: appointment.startTime,
+            totalAmount: appointment.services[0]?.price || 0,
+            appointmentId: appointment._id.toString().slice(-6).toUpperCase()
+          };
+          
+          console.log('📧 Notification data prepared:', {
+            email: notificationData.customerEmail,
+            phone: notificationData.customerPhone,
+            salonName: notificationData.salonName,
+            serviceName: notificationData.serviceName
+          });
+
+          // Send confirmation to customer
+          console.log('📧 Calling sendAppointmentConfirmation...');
+          const confirmationResult = await notificationService.sendAppointmentConfirmation(notificationData);
+          console.log('📧 Customer notification result:', confirmationResult);
+
+          // Send notification to salon owner
+          if (salon.email) {
+            console.log('📧 Sending owner notification to:', salon.email);
+            const ownerNotificationData = {
+              ownerEmail: salon.email,
+              ownerName: salon.name,
+              salonName: salon.name,
+              customerName: appointment.user.name || name || 'Guest',
+              serviceName: appointment.services[0]?.name || 'Service',
+              date: dayjs(appointment.date).format('MMMM DD, YYYY'),
+              time: appointment.startTime,
+              totalAmount: appointment.services[0]?.price || 0,
+              customerPhone: phone
+            };
+
+            const ownerNotificationResult = await notificationService.notifyOwnerNewBooking(
+              { ownerEmail: salon.email, ownerName: salon.name, salonName: salon.name },
+              ownerNotificationData
+            );
+            console.log('📧 Owner notification result:', ownerNotificationResult);
+          } else {
+            console.log('📧 No salon owner email found');
+          }
+        }
+        console.log('📧 All notifications processed');
+      }
+    } catch (notificationError) {
+      console.error('❌ Notification error:', notificationError);
+      console.error('❌ Notification error stack:', notificationError.stack);
+      // Don't fail the appointment creation if notifications fail
+    }
+
     res.status(201).json({ 
       success: true, 
       message: "Appointments created successfully",
@@ -245,9 +374,34 @@ router.patch("/:id/status", async (req, res) => {
       req.params.id,
       { status },
       { new: true }
-    );
+    ).populate('salonId');
 
     if (!updated) return res.status(404).json({ message: "Appointment not found" });
+
+    // Send confirmation email when appointment is confirmed
+    if (status === "confirmed" && updated.user?.email) {
+      try {
+        console.log('📧 Sending confirmation notification for appointment:', updated._id);
+        
+        const notificationData = {
+          customerEmail: updated.user.email,
+          customerPhone: updated.user.phone,
+          customerName: updated.user.name || 'Guest',
+          salonName: updated.salonId?.name || 'Salon',
+          serviceName: updated.services[0]?.name || 'Service',
+          date: dayjs(updated.date).format('MMMM DD, YYYY'),
+          time: updated.startTime,
+          totalAmount: updated.services[0]?.price || 0,
+          appointmentId: updated._id.toString().slice(-6).toUpperCase()
+        };
+
+        const confirmationResult = await notificationService.sendAppointmentConfirmation(notificationData);
+        console.log('📧 Confirmation notification result:', confirmationResult);
+      } catch (notificationError) {
+        console.error('❌ Confirmation notification error:', notificationError);
+        // Don't fail the status update if notification fails
+      }
+    }
 
     if (status === "cancelled") {
       await TimeSlot.updateMany(
@@ -378,6 +532,41 @@ router.patch("/:id/reschedule", async (req, res) => {
       success: false, 
       message: "Failed to reschedule appointment",
       error: err.message 
+    });
+  }
+});
+
+// 📧 Test notification endpoint
+router.post("/test-notification", async (req, res) => {
+  try {
+    console.log('🧪 Testing notification service...');
+    
+    const testData = {
+      customerEmail: 'test@example.com',
+      customerPhone: '+1234567890',
+      customerName: 'Test Customer',
+      salonName: 'Test Salon',
+      serviceName: 'Test Service',
+      date: 'December 25, 2024',
+      time: '10:00 AM',
+      totalAmount: 50,
+      appointmentId: 'TEST123'
+    };
+
+    const result = await notificationService.sendAppointmentConfirmation(testData);
+    console.log('🧪 Test notification result:', result);
+    
+    res.json({ 
+      success: true, 
+      message: 'Test notification sent successfully',
+      result: result 
+    });
+  } catch (error) {
+    console.error('❌ Test notification failed:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Test notification failed',
+      error: error.message 
     });
   }
 });

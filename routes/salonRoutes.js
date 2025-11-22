@@ -280,4 +280,40 @@ router.get("/owner/profile", authenticateToken, requireOwner, async (req, res) =
   }
 });
 
+// ✅ Clean up duplicate salons (admin utility)
+router.delete("/cleanup/duplicates", async (req, res) => {
+  try {
+    const salons = await Salon.find();
+    const duplicatesRemoved = [];
+    const seenEmails = new Set();
+    const seenNames = new Set();
+    
+    for (let salon of salons) {
+      const emailKey = salon.email.toLowerCase();
+      const nameLocationKey = `${salon.name.toLowerCase()}-${salon.location.toLowerCase()}`;
+      
+      if (seenEmails.has(emailKey) || seenNames.has(nameLocationKey)) {
+        await Salon.findByIdAndDelete(salon._id);
+        duplicatesRemoved.push({
+          id: salon._id,
+          name: salon.name,
+          email: salon.email,
+          reason: seenEmails.has(emailKey) ? 'Duplicate email' : 'Duplicate name+location'
+        });
+      } else {
+        seenEmails.add(emailKey);
+        seenNames.add(nameLocationKey);
+      }
+    }
+
+    res.json({
+      message: `Cleanup completed. Removed ${duplicatesRemoved.length} duplicate salons.`,
+      duplicatesRemoved
+    });
+  } catch (err) {
+    console.error("Cleanup error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 module.exports = router;

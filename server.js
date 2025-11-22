@@ -49,7 +49,7 @@ const corsOptions = {
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-requested-with'],
   optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 };
@@ -62,7 +62,13 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" })); // handle form d
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
-.then(() => console.log("✅ MongoDB connected"))
+.then(() => {
+  console.log("✅ MongoDB connected");
+  
+  // Initialize email notification cron jobs after database connection
+  const cronJobManager = require('./utils/cronJobs');
+  cronJobManager.initialize();
+})
 .catch((err) => console.error("❌ MongoDB connection error:", err));
 
 // API Routes

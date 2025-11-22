@@ -3,6 +3,8 @@ const router = express.Router();
 const User = require('../models/User');
 const { generateToken } = require('../utils/jwtUtils');
 const { authenticateToken, requireCustomer } = require('../middleware/authMiddleware');
+const notificationService = require('../services/notificationService');
+const crypto = require('crypto');
 
 // Google login - Save or return user with JWT
 router.post('/google-login', async (req, res) => {
@@ -172,6 +174,130 @@ router.post('/validate-token', authenticateToken, (req, res) => {
     valid: true,
     user: req.user
   });
+});
+
+// Request password reset
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+    
+    const user = await User.findOne({ email });
+    
+    if (!user) {
+      // Don't reveal if email exists or not for security
+      return res.json({ message: 'If the email exists, a reset link has been sent' });
+    }
+    
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
+    
+    // Save reset token to user
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = resetTokenExpiry;
+    await user.save();
+    
+    // Create reset URL (you'll need to update this with your frontend URL)
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+    
+    // Send reset email
+    const emailResult = await notificationService.sendPasswordReset({
+      customerEmail: user.email,
+      customerName: user.name,
+      resetToken,
+      resetUrl
+    });
+    
+    if (emailResult.success) {
+      res.json({ message: 'Password reset email sent successfully' });
+    } else {
+      res.status(500).json({ message: 'Failed to send reset email' });
+    }
+    
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Reset password
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    
+    if (!token || !newPassword) {
+      return res.status(400).json({ message: 'Token and new password are required' });
+    }
+    
+    // Find user with valid reset token
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: new Date() }
+    });
+    
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired reset token' });
+    }
+    
+    // Update password (you might want to hash this depending on your User model)
+    user.password = newPassword; // Add password hashing if needed
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+    
+    res.json({ message: 'Password reset successfully' });
+    
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Send feedback request email
+router.post('/send-feedback-request', authenticateToken, async (req, res) => {
+  try {
+    const { appointmentId } = req.body;
+    
+    if (!appointmentId) {
+      return res.status(400).json({ message: 'Appointment ID is required' });
+    }
+    
+    // Find the appointment
+    const Appointment = require('../models/Appointment');
+    const appointment = await Appointment.findById(appointmentId);
+    
+    if (!appointment) {
+      return res.status(404).json({ message: 'Appointment not found' });
+    }
+    
+    // Create feedback URL
+    const feedbackUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/feedback?appointment=${appointmentId}`;
+    
+    // Send feedback request
+    const result = await notificationService.sendFeedbackRequest({
+      customerEmail: appointment.user.email,
+      customerPhone: appointment.user.phone,
+      customerName: appointment.user.name,
+      salonName: appointment.salonName,
+      serviceName: appointment.serviceName,
+      appointmentDate: appointment.date,
+      appointmentId,
+      feedbackUrl
+    });
+    
+    res.json({ 
+      message: 'Feedback request sent',
+      results: result
+    });
+    
+  } catch (error) {
+    console.error('Send feedback request error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 module.exports = router;

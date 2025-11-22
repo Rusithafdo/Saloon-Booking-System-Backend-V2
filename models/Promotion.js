@@ -17,6 +17,8 @@ const promotionSchema = new mongoose.Schema({
     default: 'Discount'
   },
   discountPercentage: Number,
+  code: String, // Promo code
+  validUntil: Date, // Alternative to endDate for display
   startDate: {
     type: Date,
     required: true
@@ -30,6 +32,12 @@ const promotionSchema = new mongoose.Schema({
     enum: ['active', 'expired', 'scheduled'],
     default: 'scheduled'
   },
+  // Email tracking fields
+  emailsSent: {
+    type: Number,
+    default: 0
+  },
+  lastEmailSent: Date,
   createdAt: {
     type: Date,
     default: Date.now

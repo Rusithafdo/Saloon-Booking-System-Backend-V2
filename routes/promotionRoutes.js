@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Promotion = require('../models/Promotion');
+const notificationService = require('../services/notificationService');
+const User = require('../models/User');
 
 // GET: All promotions
 router.get('/', async (req, res) => {
@@ -62,6 +64,88 @@ router.delete('/:id', async (req, res) => {
   } catch (err) {
     console.error('Error deleting promotion:', err);
     res.status(500).json({ message: 'Failed to delete promotion' });
+  }
+});
+
+// POST: Send promotional emails to customers
+router.post('/:id/send-emails', async (req, res) => {
+  try {
+    const promotionId = req.params.id;
+    const { targetCustomers = 'all' } = req.body; // 'all', 'recent', or array of emails
+    
+    // Get promotion details
+    const promotion = await Promotion.findById(promotionId)
+      .populate('salonId', 'name');
+    
+    if (!promotion) {
+      return res.status(404).json({ message: 'Promotion not found' });
+    }
+    
+    let customerList = [];
+    
+    if (targetCustomers === 'all') {
+      // Get all customers
+      customerList = await User.find({ role: 'customer' }).select('name email');
+    } else if (targetCustomers === 'recent') {
+      // Get customers who booked in the last 6 months
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      
+      const Appointment = require('../models/Appointment');
+      const recentAppointments = await Appointment.find({
+        createdAt: { $gte: sixMonthsAgo }
+      }).distinct('user.email');
+      
+      customerList = await User.find({ 
+        email: { $in: recentAppointments },
+        role: 'customer'
+      }).select('name email');
+    } else if (Array.isArray(targetCustomers)) {
+      // Specific email list
+      customerList = await User.find({ 
+        email: { $in: targetCustomers },
+        role: 'customer'
+      }).select('name email');
+    }
+    
+    if (customerList.length === 0) {
+      return res.status(400).json({ message: 'No customers found to send emails to' });
+    }
+    
+    // Prepare promotion data
+    const promotionData = {
+      promotionTitle: promotion.title,
+      promotionDescription: promotion.description,
+      discountPercentage: promotion.discountPercentage,
+      validUntil: promotion.validUntil,
+      salonName: promotion.salonId.name,
+      promotionCode: promotion.code
+    };
+    
+    // Send bulk emails
+    const results = await notificationService.sendBulkPromotionalEmails(
+      customerList,
+      promotionData
+    );
+    
+    // Update promotion with email stats
+    promotion.emailsSent = (promotion.emailsSent || 0) + results.success;
+    promotion.lastEmailSent = new Date();
+    await promotion.save();
+    
+    res.json({
+      message: 'Promotional emails sent',
+      stats: {
+        totalCustomers: customerList.length,
+        successfulEmails: results.success,
+        failedEmails: results.failed
+      },
+      results: results.results
+    });
+    
+  } catch (err) {
+    console.error('Error sending promotional emails:', err);
+    res.status(500).json({ message: 'Failed to send promotional emails' });
   }
 });
 

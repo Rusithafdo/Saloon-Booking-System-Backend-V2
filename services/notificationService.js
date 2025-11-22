@@ -396,6 +396,171 @@ const emailTemplates = {
     };
   },
 
+  passwordReset: (data) => {
+    const { customerName, resetToken, resetUrl } = data;
+    return {
+      subject: '🔒 Reset Your Salon Booking Password',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body { font-family: 'Arial', sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+                .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+                .header { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%); color: white; padding: 30px 20px; text-align: center; }
+                .content { padding: 30px; }
+                .reset-button { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; border-radius: 8px; text-decoration: none; display: inline-block; margin: 20px 0; font-weight: bold; }
+                .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 8px; margin: 20px 0; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🔒 Password Reset Request</h1>
+                </div>
+                <div class="content">
+                    <p>Dear <strong>${customerName}</strong>,</p>
+                    <p>We received a request to reset your password for your Salon Booking System account.</p>
+                    
+                    <div style="text-align: center;">
+                        <a href="${resetUrl}" class="reset-button">Reset Your Password</a>
+                    </div>
+                    
+                    <div class="warning">
+                        <strong>⚠️ Important:</strong>
+                        <ul>
+                            <li>This link will expire in 1 hour for security reasons</li>
+                            <li>If you didn't request this reset, please ignore this email</li>
+                            <li>Never share this link with anyone</li>
+                        </ul>
+                    </div>
+                    
+                    <p>If the button doesn't work, copy and paste this link:</p>
+                    <p style="word-break: break-all; color: #007bff;">${resetUrl}</p>
+                </div>
+            </div>
+        </body>
+        </html>
+      `,
+      text: `
+        Password Reset Request
+        
+        Dear ${customerName},
+        
+        We received a request to reset your password.
+        
+        Click this link to reset your password: ${resetUrl}
+        
+        This link expires in 1 hour.
+        
+        If you didn't request this, please ignore this email.
+        
+        - Salon Booking System
+      `
+    };
+  },
+
+  promotionalEmail: (data) => {
+    const { customerName, promotionTitle, promotionDescription, discountPercentage, validUntil, salonName, promotionCode } = data;
+    return {
+      subject: `🎉 Special Offer: ${promotionTitle} - ${salonName}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body { font-family: 'Arial', sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+                .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+                .header { background: linear-gradient(135deg, #00b894 0%, #00cec9 100%); color: white; padding: 40px 20px; text-align: center; }
+                .content { padding: 30px; }
+                .discount-badge { background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%); color: white; font-size: 32px; font-weight: bold; padding: 20px; border-radius: 50%; width: 100px; height: 100px; display: flex; align-items: center; justify-content: center; margin: 20px auto; }
+                .promo-code { background: #ddd; padding: 15px; border-radius: 8px; font-size: 18px; font-weight: bold; text-align: center; border: 2px dashed #00b894; margin: 20px 0; }
+                .cta-button { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; border-radius: 8px; text-decoration: none; display: inline-block; margin: 20px 0; font-weight: bold; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🎉 Special Offer Just For You!</h1>
+                    <p>${promotionTitle}</p>
+                </div>
+                <div class="content">
+                    <p>Dear <strong>${customerName}</strong>,</p>
+                    
+                    <div class="discount-badge">
+                        ${discountPercentage}% OFF
+                    </div>
+                    
+                    <div style="text-align: center;">
+                        <h2 style="color: #00b894;">${promotionTitle}</h2>
+                        <p style="font-size: 16px; color: #636e72;">${promotionDescription}</p>
+                    </div>
+                    
+                    ${promotionCode ? `<div class="promo-code">
+                        Use Code: <span style="color: #00b894;">${promotionCode}</span>
+                    </div>` : ''}
+                    
+                    <div style="text-align: center;">
+                        <a href="#" class="cta-button">Book Your Appointment Now</a>
+                    </div>
+                    
+                    <p style="text-align: center; color: #e17055; font-weight: bold;">⏰ Offer valid until ${validUntil}</p>
+                    
+                    <p>Thank you for being a valued customer of <strong>${salonName}</strong>!</p>
+                </div>
+            </div>
+        </body>
+        </html>
+      `
+    };
+  },
+
+  feedbackRequest: (data) => {
+    const { customerName, salonName, serviceName, appointmentDate, feedbackUrl, appointmentId } = data;
+    return {
+      subject: `💭 How was your experience at ${salonName}?`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body { font-family: 'Arial', sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+                .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+                .header { background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%); color: white; padding: 30px 20px; text-align: center; }
+                .content { padding: 30px; }
+                .stars { font-size: 30px; text-align: center; margin: 20px 0; }
+                .feedback-button { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; border-radius: 8px; text-decoration: none; display: inline-block; margin: 20px 0; font-weight: bold; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>💭 Your Feedback Matters!</h1>
+                </div>
+                <div class="content">
+                    <p>Dear <strong>${customerName}</strong>,</p>
+                    
+                    <p>Thank you for visiting <strong>${salonName}</strong> on ${appointmentDate} for your ${serviceName} service!</p>
+                    
+                    <p>We'd love to hear about your experience. Your feedback helps us provide better service to you and other customers.</p>
+                    
+                    <div class="stars">⭐⭐⭐⭐⭐</div>
+                    
+                    <div style="text-align: center;">
+                        <a href="${feedbackUrl}" class="feedback-button">Share Your Feedback</a>
+                    </div>
+                    
+                    <p style="font-size: 14px; color: #636e72; text-align: center;">Takes less than 2 minutes • Your honest opinion helps us improve</p>
+                    
+                    <p>Thank you for choosing <strong>${salonName}</strong>!</p>
+                </div>
+            </div>
+        </body>
+        </html>
+      `
+    };
+  },
+
   ownerNewBooking: (data) => {
     const { ownerName, salonName, customerName, serviceName, date, time, totalAmount, customerPhone } = data;
     return {
@@ -451,6 +616,16 @@ const smsTemplates = {
   appointmentReminder: (data) => {
     const { customerName, salonName, date, time } = data;
     return `⏰ Reminder: Hi ${customerName}, you have an appointment tomorrow at ${salonName} on ${date} at ${time}. See you there!`;
+  },
+
+  passwordReset: (data) => {
+    const { customerName, resetUrl } = data;
+    return `🔒 Password Reset: Hi ${customerName}, click here to reset your password: ${resetUrl} (expires in 1 hour)`;
+  },
+
+  feedbackRequest: (data) => {
+    const { customerName, salonName, feedbackUrl } = data;
+    return `💭 Hi ${customerName}! How was your experience at ${salonName}? Share your feedback: ${feedbackUrl}`;
   }
 };
 
@@ -660,11 +835,191 @@ class NotificationService {
     return { success: false, error: 'Owner email not provided' };
   }
 
+  // Send password reset email
+  async sendPasswordReset(resetData) {
+    const { customerEmail, customerName, resetToken, resetUrl } = resetData;
+    
+    if (customerEmail) {
+      return await this.sendEmail(customerEmail, 'passwordReset', {
+        customerName,
+        resetToken,
+        resetUrl
+      });
+    }
+    
+    return { success: false, error: 'Customer email not provided' };
+  }
+
+  // Send promotional email
+  async sendPromotionalEmail(promotionData) {
+    const {
+      customerEmail,
+      customerName,
+      promotionTitle,
+      promotionDescription,
+      discountPercentage,
+      validUntil,
+      salonName,
+      promotionCode
+    } = promotionData;
+    
+    if (customerEmail) {
+      return await this.sendEmail(customerEmail, 'promotionalEmail', {
+        customerName,
+        promotionTitle,
+        promotionDescription,
+        discountPercentage,
+        validUntil,
+        salonName,
+        promotionCode
+      });
+    }
+    
+    return { success: false, error: 'Customer email not provided' };
+  }
+
+  // Send feedback request email
+  async sendFeedbackRequest(feedbackData) {
+    const {
+      customerEmail,
+      customerPhone,
+      customerName,
+      salonName,
+      serviceName,
+      appointmentDate,
+      appointmentId,
+      feedbackUrl
+    } = feedbackData;
+
+    const results = { email: null, sms: null };
+
+    if (customerEmail) {
+      results.email = await this.sendEmail(customerEmail, 'feedbackRequest', {
+        customerName,
+        salonName,
+        serviceName,
+        appointmentDate,
+        appointmentId,
+        feedbackUrl
+      });
+    }
+
+    if (customerPhone) {
+      results.sms = await this.sendSMS(customerPhone, 'feedbackRequest', {
+        customerName,
+        salonName,
+        feedbackUrl
+      });
+    }
+
+    return results;
+  }
+
+  // Bulk email sending for promotions
+  async sendBulkPromotionalEmails(customerList, promotionData) {
+    console.log(`📧 Sending promotional emails to ${customerList.length} customers...`);
+    
+    const results = {
+      success: 0,
+      failed: 0,
+      results: []
+    };
+
+    for (const customer of customerList) {
+      try {
+        const emailData = {
+          customerEmail: customer.email,
+          customerName: customer.name,
+          ...promotionData
+        };
+        
+        const result = await this.sendPromotionalEmail(emailData);
+        
+        if (result.success) {
+          results.success++;
+        } else {
+          results.failed++;
+        }
+        
+        results.results.push({
+          email: customer.email,
+          success: result.success,
+          error: result.error
+        });
+        
+        // Add delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+      } catch (error) {
+        console.error(`❌ Failed to send to ${customer.email}:`, error);
+        results.failed++;
+        results.results.push({
+          email: customer.email,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+    
+    console.log(`✅ Bulk email complete: ${results.success} success, ${results.failed} failed`);
+    return results;
+  }
+
   // Schedule appointment reminders (to be called by a cron job)
   async sendDailyReminders() {
-    // This would be called by a cron job to send reminders for tomorrow's appointments
-    console.log('📅 Checking for appointments to remind...');
-    // Implementation would query database for tomorrow's appointments and send reminders
+    try {
+      console.log('📅 Checking for appointments to remind...');
+      
+      // Get tomorrow's date
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowDateStr = tomorrow.toISOString().split('T')[0]; // YYYY-MM-DD format
+      
+      // Import Appointment model
+      const Appointment = require('../models/Appointment');
+      
+      // Find appointments for tomorrow
+      const tomorrowAppointments = await Appointment.find({
+        date: tomorrowDateStr,
+        status: { $nin: ['cancelled', 'completed'] }
+      });
+      
+      console.log(`📧 Found ${tomorrowAppointments.length} appointments for tomorrow`);
+      
+      let remindersent = 0;
+      
+      for (const appointment of tomorrowAppointments) {
+        try {
+          const reminderData = {
+            customerEmail: appointment.user.email,
+            customerPhone: appointment.user.phone,
+            customerName: appointment.user.name,
+            salonName: appointment.salonName,
+            serviceName: appointment.serviceName,
+            date: appointment.date,
+            time: appointment.time,
+            salonPhone: appointment.salonPhone
+          };
+          
+          const result = await this.sendAppointmentReminder(reminderData);
+          
+          if (result.email?.success || result.sms?.success) {
+            remindersent++;
+            console.log(`✅ Reminder sent to ${appointment.user.name}`);
+          }
+          
+        } catch (error) {
+          console.error(`❌ Failed to send reminder for appointment ${appointment._id}:`, error);
+        }
+      }
+      
+      console.log(`📊 Daily reminders complete: ${remindersent}/${tomorrowAppointments.length} sent`);
+      return { sent: remindersent, total: tomorrowAppointments.length };
+      
+    } catch (error) {
+      console.error('❌ Daily reminders failed:', error);
+      return { error: error.message };
+    }
   }
 }
 

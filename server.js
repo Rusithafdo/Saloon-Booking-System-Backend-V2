@@ -62,7 +62,13 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" })); // handle form d
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
-.then(() => console.log("✅ MongoDB connected"))
+.then(() => {
+  console.log("✅ MongoDB connected");
+  
+  // Initialize email notification cron jobs after database connection
+  const cronJobManager = require('./utils/cronJobs');
+  cronJobManager.initialize();
+})
 .catch((err) => console.error("❌ MongoDB connection error:", err));
 
 // API Routes

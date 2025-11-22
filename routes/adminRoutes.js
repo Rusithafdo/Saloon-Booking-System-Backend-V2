@@ -300,4 +300,52 @@ router.get('/profile', authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
+// Admin route to manually trigger email notifications
+router.post('/notifications/test', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { type } = req.body; // 'reminders', 'feedback', or 'both'
+    const cronJobManager = require('../utils/cronJobs');
+    const results = {};
+
+    if (type === 'reminders' || type === 'both') {
+      console.log('📧 Admin triggered daily reminders...');
+      results.reminders = await cronJobManager.triggerDailyReminders();
+    }
+
+    if (type === 'feedback' || type === 'both') {
+      console.log('📝 Admin triggered feedback requests...');
+      results.feedback = await cronJobManager.triggerFeedbackRequests();
+    }
+
+    res.json({
+      message: 'Email notifications triggered successfully',
+      results
+    });
+
+  } catch (error) {
+    console.error('Error triggering notifications:', error);
+    res.status(500).json({ 
+      message: 'Failed to trigger notifications',
+      error: error.message 
+    });
+  }
+});
+
+// Get cron job status
+router.get('/notifications/status', authenticateToken, requireAdmin, (req, res) => {
+  try {
+    const cronJobManager = require('../utils/cronJobs');
+    const status = cronJobManager.getJobStatus();
+    
+    res.json({
+      cronJobs: status,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('Error getting notification status:', error);
+    res.status(500).json({ message: 'Failed to get notification status' });
+  }
+});
+
 module.exports = router;

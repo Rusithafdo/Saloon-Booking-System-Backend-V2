@@ -232,17 +232,26 @@ router.post("/", async (req, res) => {
 
     // Send notifications for all created appointments
     try {
-      console.log('📧 Sending notifications...');
+      console.log('📧 Starting notification process...');
+      console.log('📧 Email provided:', email);
+      console.log('📧 Phone provided:', phone);
       
       // Get salon information for notifications
       const firstAppointment = savedAppointments[0];
+      console.log('📧 First appointment:', firstAppointment.salonId);
+      
       const salon = await Salon.findById(firstAppointment.salonId);
+      console.log('📧 Salon found:', salon ? salon.name : 'Not found');
       
       if (!salon) {
         console.log('⚠️ Salon not found for notifications');
       } else {
+        console.log('📧 Processing notifications for', savedAppointments.length, 'appointments');
+        
         // Send customer confirmation for each appointment
         for (const appointment of savedAppointments) {
+          console.log('📧 Processing notification for appointment:', appointment._id);
+          
           const notificationData = {
             customerEmail: email,
             customerPhone: phone,
@@ -254,13 +263,22 @@ router.post("/", async (req, res) => {
             totalAmount: appointment.services[0]?.price || 0,
             appointmentId: appointment._id.toString().slice(-6).toUpperCase()
           };
+          
+          console.log('📧 Notification data prepared:', {
+            email: notificationData.customerEmail,
+            phone: notificationData.customerPhone,
+            salonName: notificationData.salonName,
+            serviceName: notificationData.serviceName
+          });
 
           // Send confirmation to customer
+          console.log('📧 Calling sendAppointmentConfirmation...');
           const confirmationResult = await notificationService.sendAppointmentConfirmation(notificationData);
           console.log('📧 Customer notification result:', confirmationResult);
 
           // Send notification to salon owner
           if (salon.email) {
+            console.log('📧 Sending owner notification to:', salon.email);
             const ownerNotificationData = {
               ownerEmail: salon.email,
               ownerName: salon.name,
@@ -278,11 +296,15 @@ router.post("/", async (req, res) => {
               ownerNotificationData
             );
             console.log('📧 Owner notification result:', ownerNotificationResult);
+          } else {
+            console.log('📧 No salon owner email found');
           }
         }
+        console.log('📧 All notifications processed');
       }
     } catch (notificationError) {
       console.error('❌ Notification error:', notificationError);
+      console.error('❌ Notification error stack:', notificationError.stack);
       // Don't fail the appointment creation if notifications fail
     }
 

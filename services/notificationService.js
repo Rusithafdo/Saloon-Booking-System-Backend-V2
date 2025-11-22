@@ -3,19 +3,50 @@ const twilio = require('twilio');
 
 // Email transporter configuration
 const createEmailTransporter = () => {
-  return nodemailer.createTransport({
-    service: 'gmail',
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // Use TLS
-    auth: {
-      user: process.env.EMAIL_USER || 'saloonbookingsystem@gmail.com',
-      pass: process.env.EMAIL_PASSWORD || 'fgyi fmlv ldyw lodm'
-    },
-    tls: {
-      rejectUnauthorized: false
-    }
-  });
+  // Try Gmail first
+  try {
+    const gmailConfig = {
+      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 465, // Use SSL port instead of TLS
+      secure: true, // Use SSL
+      auth: {
+        user: process.env.EMAIL_USER || 'saloonbookingsystem@gmail.com',
+        pass: process.env.EMAIL_PASSWORD || 'buvl bjbt lfom zijs'
+      },
+      tls: {
+        rejectUnauthorized: false
+      },
+      connectionTimeout: 60000, // 60 seconds
+      greetingTimeout: 30000, // 30 seconds
+      socketTimeout: 60000 // 60 seconds
+    };
+
+    console.log('📧 Creating Gmail SMTP transporter...');
+    return nodemailer.createTransport(gmailConfig);
+  } catch (error) {
+    console.error('❌ Gmail SMTP configuration failed:', error);
+    
+    // Fallback to direct SMTP configuration
+    console.log('📧 Trying alternative SMTP configuration...');
+    return nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
+      requireTLS: true,
+      auth: {
+        user: process.env.EMAIL_USER || 'saloonbookingsystem@gmail.com',
+        pass: process.env.EMAIL_PASSWORD || 'buvl bjbt lfom zijs'
+      },
+      tls: {
+        ciphers: 'SSLv3',
+        rejectUnauthorized: false
+      },
+      connectionTimeout: 60000,
+      greetingTimeout: 30000,
+      socketTimeout: 60000
+    });
+  }
 };
 
 // Twilio client configuration

@@ -25,14 +25,33 @@ const loyaltyRoutes = require("./routes/loyaltyRoutes");
 const app = express();
 
 // CORS Configuration
+const allowedOrigins = [
+  'http://localhost:3000', // Local development
+  'https://saloon-booking-system-frontend-web-eight.vercel.app', // Your actual Vercel URL
+  'https://saloon-booking-system-frontend-web-v2.vercel.app', // Alternative domain pattern
+];
+
+// Add production frontend URL from environment variable
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL);
+}
+
 const corsOptions = {
-  origin: [
-    'http://localhost:3000', // Local development
-    'https://your-vercel-app.vercel.app', // Replace with your actual Vercel URL
-  ],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list or matches Vercel pattern
+    if (allowedOrigins.includes(origin) || origin.includes('vercel.app')) {
+      return callback(null, true);
+    }
+    
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-requested-with'],
+  optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 };
 
 // Middleware
@@ -76,6 +95,14 @@ try {
   console.log('❌ Failed to load payment routes:', error.message);
 }
 
+// CORS test route
+app.get('/api/test', (req, res) => {
+  res.json({ 
+    message: '✅ CORS is working!', 
+    origin: req.headers.origin,
+    timestamp: new Date().toISOString()
+  });
+});
 
 // Default route
 app.get('/', (req, res) => {

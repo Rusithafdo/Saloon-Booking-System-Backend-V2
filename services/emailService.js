@@ -32,8 +32,8 @@ class EmailService {
       const config = {
         service: 'gmail',
         host: 'smtp.gmail.com', 
-        port: 587,
-        secure: false, // Use STARTTLS
+        port: parseInt(process.env.EMAIL_PORT) || 465, // Try 465 (SSL) if 587 is blocked
+        secure: (process.env.EMAIL_PORT === '465') ? true : false, // SSL for 465, STARTTLS for 587
         auth: {
           user: emailUser,
           pass: emailPassword

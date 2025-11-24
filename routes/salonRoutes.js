@@ -80,7 +80,8 @@ router.post("/register", upload.single("image"), async (req, res) => {
         services: newSalon.services,
         workingHours: newSalon.workingHours,
         image: newSalon.image,
-        role: newSalon.role
+        role: newSalon.role,
+        approvalStatus: newSalon.approvalStatus
       }
     });
   } catch (err) {
@@ -104,15 +105,7 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // ✅ ADDED: Verify salon is approved
-    if (salon.approvalStatus !== 'approved') {
-      return res.status(403).json({ 
-        message: `Your salon account is ${salon.approvalStatus}. Please wait for admin approval.`,
-        approvalStatus: salon.approvalStatus
-      });
-    }
-
-    // Generate JWT token
+    // Generate JWT token (even for pending salons so they can see pending message)
     const token = generateToken({
       userId: salon._id,
       email: salon.email,
@@ -120,6 +113,7 @@ router.post("/login", async (req, res) => {
       salonName: salon.name
     });
 
+    // Return salon data with approval status
     res.json({
       message: "Login successful",
       token,
@@ -132,7 +126,9 @@ router.post("/login", async (req, res) => {
         services: salon.services,
         workingHours: salon.workingHours,
         image: salon.image,
-        role: salon.role
+        role: salon.role,
+        approvalStatus: salon.approvalStatus, // ✅ Include approval status
+        rejectionReason: salon.rejectionReason // ✅ Include rejection reason if any
       }
     });
   } catch (err) {
@@ -282,7 +278,9 @@ router.get("/owner/profile", authenticateToken, requireOwner, async (req, res) =
         image: salon.image,
         role: salon.role,
         salonType: salon.salonType,
-        coordinates: salon.coordinates
+        coordinates: salon.coordinates,
+        approvalStatus: salon.approvalStatus,
+        rejectionReason: salon.rejectionReason
       }
     });
   } catch (err) {

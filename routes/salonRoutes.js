@@ -89,7 +89,7 @@ router.post("/register", upload.single("image"), async (req, res) => {
   }
 });
 
-// ✅ Login with JWT
+// ✅ Login with JWT - UPDATED WITH APPROVAL STATUS CHECK
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
   
@@ -102,6 +102,14 @@ router.post("/login", async (req, res) => {
     const isMatch = await bcrypt.compare(password, salon.password);
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    // ✅ ADDED: Verify salon is approved
+    if (salon.approvalStatus !== 'approved') {
+      return res.status(403).json({ 
+        message: `Your salon account is ${salon.approvalStatus}. Please wait for admin approval.`,
+        approvalStatus: salon.approvalStatus
+      });
     }
 
     // Generate JWT token
@@ -163,7 +171,7 @@ router.get("/nearby", async (req, res) => {
       kandy: { lat: 7.2906, lng: 80.6337 },
       galle: { lat: 6.0535, lng: 80.221 },
       jaffna: { lat: 9.6615, lng: 80.0255 },
-       matara: { lat: 5.9549, lng: 80.5549 },
+      matara: { lat: 5.9549, lng: 80.5549 },
       kurunegala: { lat: 7.4868, lng: 80.3659 },
       anuradhapura: { lat: 8.3114, lng: 80.4037 },
       negombo: { lat: 7.2083, lng: 79.8358 },

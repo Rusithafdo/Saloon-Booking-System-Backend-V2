@@ -7,7 +7,7 @@ const streamifier = require("streamifier");
 const cloudinary = require("../config/cloudinary");
 const { generateToken } = require("../utils/jwtUtils");
 const { authenticateToken, requireOwner } = require("../middleware/authMiddleware");
-const emailService = require("../services/emailService");
+const notificationService = require("../services/notificationService");
 
 // Multer setup
 const storage = multer.memoryStorage();
@@ -220,15 +220,24 @@ router.post("/register", upload.single("image"), async (req, res) => {
 
     console.log(`🔄 Registration attempt for: ${email}`);
 
-    // ALWAYS try to send email first - this is the priority
+    // ALWAYS try to send email first using professional notification service
     let emailSent = false;
     let emailError = null;
     
     try {
       console.log(`📧 Attempting to send registration email to: ${email}`);
-      await sendRegistrationEmail({ name, email });
-      console.log(`✅ Registration email sent successfully to ${email}`);
-      emailSent = true;
+      const emailResult = await notificationService.sendSalonRegistrationConfirmation({
+        salonName: name,
+        ownerEmail: email
+      });
+      
+      if (emailResult.success) {
+        console.log(`✅ Registration email sent successfully to ${email}`);
+        emailSent = true;
+      } else {
+        console.error(`❌ Registration email failed: ${emailResult.error}`);
+        emailError = emailResult.error;
+      }
     } catch (error) {
       console.error(`❌ Failed to send registration email to ${email}:`, error.message);
       emailError = error.message;

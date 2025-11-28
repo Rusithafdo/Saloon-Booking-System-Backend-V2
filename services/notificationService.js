@@ -610,6 +610,273 @@ const emailTemplates = {
         </html>
       `
     };
+  },
+
+  salonRegistrationConfirmation: (data) => {
+    const { salonName, ownerEmail } = data;
+    return {
+      subject: `🎉 Welcome to Salon Booking System - Registration Successful!`,
+      html: `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Salon Registration Confirmed</title>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { 
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                    line-height: 1.6; 
+                    color: #2c3e50; 
+                    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+                    min-height: 100vh;
+                    padding: 20px;
+                }
+                .email-container { 
+                    max-width: 650px; 
+                    margin: 40px auto; 
+                    background: #ffffff; 
+                    border-radius: 16px; 
+                    box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+                    overflow: hidden;
+                }
+                .header { 
+                    background: linear-gradient(135deg, #00AEEF 0%, #1FAF38 100%); 
+                    color: #ffffff; 
+                    padding: 40px 30px; 
+                    text-align: center;
+                    position: relative;
+                }
+                .header::before {
+                    content: '';
+                    position: absolute;
+                    top: 0; left: 0; right: 0; bottom: 0;
+                    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+                }
+                .header h1 { 
+                    font-size: 28px; 
+                    font-weight: 600; 
+                    margin-bottom: 8px;
+                    position: relative;
+                    z-index: 1;
+                }
+                .success-icon { 
+                    font-size: 60px; 
+                    margin-bottom: 20px;
+                    position: relative;
+                    z-index: 1;
+                }
+                .content { padding: 40px 30px; }
+                .greeting { 
+                    font-size: 18px; 
+                    color: #2c3e50; 
+                    margin-bottom: 16px;
+                    font-weight: 500;
+                }
+                .intro-text { 
+                    color: #546e7a; 
+                    margin-bottom: 30px; 
+                    font-size: 16px;
+                }
+                .salon-name {
+                    background: linear-gradient(135deg, #00AEEF, #1FAF38);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    background-clip: text;
+                    font-size: 24px;
+                    font-weight: 700;
+                    text-align: center;
+                    margin-bottom: 20px;
+                    color: #00AEEF; /* Fallback for non-webkit browsers */
+                }
+                .status-card { 
+                    background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); 
+                    border: 2px solid #ffcc02;
+                    padding: 25px; 
+                    border-radius: 12px; 
+                    margin: 25px 0;
+                    text-align: center;
+                    box-shadow: 0 4px 20px rgba(255,193,7,0.08);
+                }
+                .status-text { 
+                    color: #e65100; 
+                    font-weight: bold; 
+                    font-size: 18px;
+                    margin-bottom: 10px;
+                }
+                .status-description {
+                    color: #bf360c;
+                    font-size: 14px;
+                }
+                .next-steps { 
+                    background: linear-gradient(135deg, #f1f8ff 0%, #e3f2fd 100%); 
+                    border-left: 4px solid #00AEEF;
+                    padding: 25px; 
+                    border-radius: 12px; 
+                    margin: 25px 0;
+                }
+                .steps-title { 
+                    font-size: 18px; 
+                    font-weight: 600; 
+                    color: #1a237e; 
+                    margin-bottom: 16px;
+                }
+                .steps-list { 
+                    list-style: none; 
+                    padding: 0;
+                }
+                .steps-list li { 
+                    color: #37474f; 
+                    margin: 12px 0; 
+                    padding-left: 25px;
+                    position: relative;
+                    line-height: 1.5;
+                }
+                .steps-list li::before {
+                    content: '✓';
+                    position: absolute;
+                    left: 0;
+                    color: #1FAF38;
+                    font-weight: bold;
+                    font-size: 16px;
+                }
+                .contact-info { 
+                    background: linear-gradient(135deg, #e8f5e8 0%, #f1f8e9 100%); 
+                    border: 1px solid #c8e6c9;
+                    padding: 20px; 
+                    border-radius: 12px; 
+                    margin: 25px 0;
+                }
+                .contact-title {
+                    color: #2e7d32;
+                    font-size: 16px;
+                    font-weight: 600;
+                    margin-bottom: 12px;
+                }
+                .contact-details {
+                    color: #388e3c;
+                    font-size: 14px;
+                    line-height: 1.6;
+                }
+                .footer { 
+                    background: #f8f9fa; 
+                    padding: 30px; 
+                    text-align: center; 
+                    border-top: 1px solid #e9ecef;
+                }
+                .footer-text { 
+                    color: #6c757d; 
+                    font-size: 14px; 
+                    line-height: 1.5;
+                    margin-bottom: 8px;
+                }
+                .company-signature {
+                    margin-top: 20px;
+                    padding-top: 20px;
+                    border-top: 1px solid #dee2e6;
+                }
+                .company-name {
+                    font-weight: 600;
+                    color: #495057;
+                }
+                @media (max-width: 600px) {
+                    .email-container { margin: 20px 10px; }
+                    .content { padding: 30px 20px; }
+                    .header { padding: 30px 20px; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="email-container">
+                <div class="header">
+                    <div class="success-icon">✅</div>
+                    <h1>Registration Successful!</h1>
+                </div>
+                
+                <div class="content">
+                    <div class="greeting">Dear <strong>${salonName}</strong> Team,</div>
+                    <div class="intro-text">
+                        Congratulations! Your salon has been successfully registered with our Salon Booking System. We're excited to have you join our platform and help your business grow.
+                    </div>
+
+                    <div class="salon-name">${salonName}</div>
+                    
+                    <div class="status-card">
+                        <div class="status-text">⏳ Your registration is currently under review</div>
+                        <div class="status-description">Our admin team will review your salon registration within 1-2 business days</div>
+                    </div>
+
+                    <div class="next-steps">
+                        <div class="steps-title">What happens next?</div>
+                        <ul class="steps-list">
+                            <li>Our admin team will review your salon details and verify your information</li>
+                            <li>You'll receive an email notification once your salon is approved</li>
+                            <li>After approval, you can access your dashboard to manage bookings and services</li>
+                            <li>Start accepting appointments from customers immediately after approval</li>
+                            <li>Enjoy our comprehensive salon management features</li>
+                        </ul>
+                    </div>
+
+                    <div class="contact-info">
+                        <div class="contact-title">Need Help or Have Questions?</div>
+                        <div class="contact-details">
+                            If you have any questions or need assistance, please don't hesitate to contact our support team:<br><br>
+                            📧 <strong>Email:</strong> support@salonbookingsystem.com<br>
+                            📞 <strong>Phone:</strong> +94 11 123 4567<br>
+                            🕒 <strong>Support Hours:</strong> Monday - Friday, 9:00 AM - 6:00 PM
+                        </div>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 30px; color: #546e7a; font-size: 16px;">
+                        Thank you for choosing <strong>Salon Booking System</strong>!<br>
+                        We look forward to helping your business succeed.
+                    </div>
+                </div>
+
+                <div class="footer">
+                    <div class="footer-text">
+                        This is an automated confirmation email from the Salon Booking System.
+                    </div>
+                    <div class="footer-text">
+                        Please do not reply to this email. For support, use the contact information above.
+                    </div>
+                    <div class="company-signature">
+                        <div class="company-name">Salon Booking System</div>
+                        <div style="color: #868e96; font-size: 12px; margin-top: 5px;">
+                            Professional salon management solution
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+      `,
+      text: `
+        Salon Booking System - Registration Successful!
+        
+        Dear ${salonName} Team,
+        
+        Congratulations! Your salon has been successfully registered with our Salon Booking System.
+        
+        Status: Your registration is currently under review
+        
+        What happens next?
+        - Our admin team will review your salon registration
+        - You'll receive an email notification once approved
+        - After approval, you can start managing bookings and services
+        - The review process typically takes 1-2 business days
+        
+        Need Help?
+        Email: support@salonbookingsystem.com
+        Phone: +94 11 123 4567
+        
+        Thank you for choosing Salon Booking System!
+        
+        Best regards,
+        Salon Booking System Team
+      `
+    };
   }
 };
 
@@ -966,6 +1233,21 @@ class NotificationService {
     }
 
     return results;
+  }
+
+  // Send salon registration confirmation email
+  async sendSalonRegistrationConfirmation(salonData) {
+    const { salonName, ownerEmail } = salonData;
+    
+    if (ownerEmail) {
+      console.log(`📧 Sending salon registration confirmation to: ${ownerEmail}`);
+      return await this.sendEmail(ownerEmail, 'salonRegistrationConfirmation', {
+        salonName,
+        ownerEmail
+      });
+    }
+    
+    return { success: false, error: 'Owner email not provided' };
   }
 
   // Bulk email sending for promotions

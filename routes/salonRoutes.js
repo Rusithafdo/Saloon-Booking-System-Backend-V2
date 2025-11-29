@@ -251,7 +251,7 @@ router.post("/register", upload.single("image"), async (req, res) => {
 
     try {
       console.log(`🔍 Checking for existing email in database...`);
-      const existingSalon = await Salon.findOne({ email }).timeout(5000);
+      const existingSalon = await Salon.findOne({ email }).maxTimeMS(15000); // Use maxTimeMS for timeout
       if (existingSalon) {
         return res.status(400).json({ 
           message: "Email already exists", 
@@ -284,7 +284,8 @@ router.post("/register", upload.single("image"), async (req, res) => {
         role: 'owner'
       });
 
-      await newSalon.save();
+      console.log(`💾 Saving salon to database...`);
+      await newSalon.save(); // Remove timeout from save - use global connection timeout
       console.log(`✅ Salon saved to database successfully`);
 
       // Generate JWT token

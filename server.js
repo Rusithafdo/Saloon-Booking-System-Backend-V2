@@ -27,6 +27,7 @@ const app = express();
 // CORS Configuration
 const allowedOrigins = [
   'http://localhost:3000', // Local development
+  'http://127.0.0.1:3000', // Alternative localhost
   'https://saloon-booking-system-frontend-web-eight.vercel.app', // Your actual Vercel URL
   'https://saloon-booking-system-frontend-web-v2.vercel.app', // Alternative domain pattern
 ];
@@ -38,17 +39,30 @@ if (process.env.FRONTEND_URL) {
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    console.log('🌐 CORS Request from origin:', origin);
     
-    // Check if origin is in allowed list or matches Vercel pattern
-    if (allowedOrigins.includes(origin) || origin.includes('vercel.app')) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      console.log('✅ No origin - allowing request');
       return callback(null, true);
     }
     
-    return callback(new Error('Not allowed by CORS'));
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      console.log('✅ Origin in allowed list - allowing request');
+      return callback(null, true);
+    }
+    
+    // Check if origin matches Vercel pattern
+    if (origin.includes('vercel.app') || origin.includes('saloon-booking-system')) {
+      console.log('✅ Vercel domain detected - allowing request');
+      return callback(null, true);
+    }
+    
+    console.log('❌ CORS blocked origin:', origin);
+    return callback(new Error(`CORS policy violation: Origin ${origin} not allowed`));
   },
-  credentials: true,
+  credentials: false, // Set to false for hosted environments
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-requested-with'],
   optionsSuccessStatus: 200 // Some legacy browsers choke on 204
@@ -56,6 +70,17 @@ const corsOptions = {
 
 // Middleware
 app.use(cors(corsOptions));
+
+// Add explicit OPTIONS handling for debugging
+app.options('*', (req, res) => {
+  console.log('🔧 OPTIONS preflight request:', {
+    origin: req.headers.origin,
+    method: req.headers['access-control-request-method'],
+    headers: req.headers['access-control-request-headers']
+  });
+  res.sendStatus(200);
+});
+
 app.use(express.json());
 app.use(express.json({ limit: "10mb" })); // handle JSON
 app.use(express.urlencoded({ extended: true, limit: "10mb" })); // handle form data
@@ -70,6 +95,17 @@ mongoose.connect(process.env.MONGO_URI)
   cronJobManager.initialize();
 })
 .catch((err) => console.error("❌ MongoDB connection error:", err));
+
+// Health check route for debugging CORS
+app.get('/api/health', (req, res) => {
+  console.log('🏥 Health check called from origin:', req.headers.origin);
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    origin: req.headers.origin,
+    userAgent: req.headers['user-agent']
+  });
+});
 
 // API Routes
 app.use('/api/users', userRoutes);

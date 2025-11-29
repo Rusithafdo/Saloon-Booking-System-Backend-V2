@@ -20,6 +20,10 @@ const userSchema = new mongoose.Schema({
   phone: String,
   gender: String,
   address: [addressSchema],
+  favorites: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Salon'
+  }],
   role: {
     type: String,
     enum: ['customer', 'admin'],

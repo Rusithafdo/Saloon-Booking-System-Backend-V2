@@ -50,7 +50,8 @@ router.post('/google-login', async (req, res) => {
         role: user.role,
         phone: user.phone || '', // Ensure phone is included even if empty
         gender: user.gender || '',
-        address: user.address || []
+        address: user.address || [],
+        favorites: user.favorites || []
       }
     });
   } catch (err) {
@@ -97,7 +98,8 @@ router.post('/phone-login', async (req, res) => {
         email: user.email,
         photoURL: user.photoURL,
         gender: user.gender,
-        address: user.address
+        address: user.address,
+        favorites: user.favorites || []
       }
     });
   } catch (err) {
@@ -123,7 +125,8 @@ router.get('/profile', authenticateToken, requireCustomer, async (req, res) => {
         photoURL: user.photoURL,
         gender: user.gender,
         address: user.address,
-        role: user.role
+        role: user.role,
+        favorites: user.favorites || []
       }
     });
   } catch (err) {
@@ -159,7 +162,8 @@ router.put('/:id', authenticateToken, requireCustomer, async (req, res) => {
         photoURL: updatedUser.photoURL,
         gender: updatedUser.gender,
         address: updatedUser.address,
-        role: updatedUser.role
+        role: updatedUser.role,
+        favorites: updatedUser.favorites || []
       }
     });
   } catch (err) {
@@ -296,6 +300,82 @@ router.post('/send-feedback-request', authenticateToken, async (req, res) => {
     
   } catch (error) {
     console.error('Send feedback request error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get user's favorite salons
+router.get('/favorites', authenticateToken, requireCustomer, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).populate('favorites');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ favorites: user.favorites });
+  } catch (error) {
+    console.error('Get favorites error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Add salon to favorites
+router.post('/favorites/:salonId', authenticateToken, requireCustomer, async (req, res) => {
+  try {
+    const { salonId } = req.params;
+    const userId = req.user.userId;
+
+    // Check if salon exists
+    const Salon = require('../models/Salon');
+    const salon = await Salon.findById(salonId);
+    if (!salon) {
+      return res.status(404).json({ message: 'Salon not found' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check if salon is already in favorites
+    if (user.favorites.includes(salonId)) {
+      return res.status(400).json({ message: 'Salon already in favorites' });
+    }
+
+    // Add to favorites
+    user.favorites.push(salonId);
+    await user.save();
+
+    res.json({ message: 'Salon added to favorites', favorites: user.favorites });
+  } catch (error) {
+    console.error('Add favorite error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Remove salon from favorites
+router.delete('/favorites/:salonId', authenticateToken, requireCustomer, async (req, res) => {
+  try {
+    const { salonId } = req.params;
+    const userId = req.user.userId;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check if salon is in favorites
+    if (!user.favorites.includes(salonId)) {
+      return res.status(404).json({ message: 'Salon not in favorites' });
+    }
+
+    // Remove from favorites
+    user.favorites = user.favorites.filter(id => id.toString() !== salonId);
+    await user.save();
+
+    res.json({ message: 'Salon removed from favorites', favorites: user.favorites });
+  } catch (error) {
+    console.error('Remove favorite error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

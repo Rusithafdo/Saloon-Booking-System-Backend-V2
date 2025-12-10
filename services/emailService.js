@@ -1,5 +1,10 @@
 const nodemailer = require('nodemailer');
 
+// Load environment variables if not already loaded
+if (!process.env.EMAIL_USER) {
+  require('dotenv').config();
+}
+
 // Professional Email Service - Based on DQMS Success Pattern
 class EmailService {
   constructor() {
@@ -32,8 +37,8 @@ class EmailService {
       const config = {
         service: 'gmail',
         host: 'smtp.gmail.com', 
-        port: parseInt(process.env.EMAIL_PORT) || 465, // Try 465 (SSL) if 587 is blocked
-        secure: (process.env.EMAIL_PORT === '465') ? true : false, // SSL for 465, STARTTLS for 587
+        port: 465, // Use SSL port instead of STARTTLS
+        secure: true, // Use SSL
         auth: {
           user: emailUser,
           pass: emailPassword
@@ -42,16 +47,16 @@ class EmailService {
           rejectUnauthorized: false,
           ciphers: 'SSLv3'
         },
-        // Professional timeout settings
-        connectionTimeout: 60000, // 60 seconds
-        greetingTimeout: 30000,   // 30 seconds
-        socketTimeout: 60000,     // 60 seconds
+        // Professional timeout settings - increased for reliability
+        connectionTimeout: 120000, // 2 minutes
+        greetingTimeout: 60000,    // 1 minute
+        socketTimeout: 120000,     // 2 minutes
         // Connection pooling for reliability
         pool: true,
-        maxConnections: 5,
-        maxMessages: 100,
-        rateDelta: 1000,
-        rateLimit: 5,
+        maxConnections: 3, // Reduced to avoid overwhelming
+        maxMessages: 50,   // Reduced batch size
+        rateDelta: 2000,   // Increased rate limiting
+        rateLimit: 3,      // Reduced rate
         // Additional options
         logger: false,
         debug: process.env.NODE_ENV === 'development'
@@ -104,8 +109,8 @@ class EmailService {
     }
   }
 
-  // Professional email sending with retry logic
-  async sendEmail(mailOptions, retryCount = 3) {
+  // Professional email sending with retry logic and fallback
+  async sendEmail(mailOptions, retryCount = 2) { // Reduced retries to avoid spam
     if (!this.transporter) {
       console.log('⚠️ Email service not available');
       return { success: false, error: 'Email service not configured' };
@@ -120,7 +125,13 @@ class EmailService {
           subject: mailOptions.subject
         });
 
-        const result = await this.transporter.sendMail(mailOptions);
+        // Add timeout to prevent hanging
+        const emailPromise = this.transporter.sendMail(mailOptions);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Email sending timeout after 30 seconds')), 30000)
+        );
+
+        const result = await Promise.race([emailPromise, timeoutPromise]);
         
         console.log('✅ Email sent successfully:', {
           messageId: result.messageId,
@@ -139,8 +150,7 @@ class EmailService {
         console.error(`❌ Email sending failed (attempt ${attempt}/${retryCount}):`, {
           message: error.message,
           code: error.code,
-          command: error.command,
-          response: error.response
+          command: error.command
         });
 
         // If it's the last attempt, return the error
@@ -148,7 +158,7 @@ class EmailService {
           // Provide helpful error messages
           let suggestion = '';
           if (error.code === 'ETIMEDOUT') {
-            suggestion = 'SMTP connection timeout - ports may be blocked';
+            suggestion = 'SMTP connection timeout - network or firewall may be blocking email ports';
           } else if (error.responseCode === 535) {
             suggestion = 'Authentication failed - check Gmail app password';
           } else if (error.code === 'ECONNREFUSED') {
@@ -164,8 +174,8 @@ class EmailService {
           };
         }
 
-        // Wait before retry (exponential backoff)
-        const waitTime = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+        // Wait before retry (shorter wait time)
+        const waitTime = 1000 * attempt; // 1s, 2s
         console.log(`⏳ Waiting ${waitTime}ms before retry...`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
       }

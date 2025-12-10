@@ -21,6 +21,10 @@ const userSchema = new mongoose.Schema({
   gender: String,
   ageCategory: String, // Age category for booking: 'Gentlemen', 'Lady', 'Teenager/boy', 'Teenager/girl', 'Kid/boy', 'Kid/girl'
   address: [addressSchema],
+  favorites: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Salon'
+  }],
   role: {
     type: String,
     enum: ['customer', 'admin'],

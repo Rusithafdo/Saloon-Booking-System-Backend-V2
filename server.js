@@ -158,10 +158,19 @@ mongoose.connect(process.env.MONGO_URI)
   console.log("✅ MongoDB connected");
   
   // Initialize email notification cron jobs after database connection
-  const cronJobManager = require('./utils/cronJobs');
-  cronJobManager.initialize();
+  try {
+    const cronJobManager = require('./utils/cronJobs');
+    cronJobManager.initialize();
+    console.log('✅ Cron jobs initialized');
+  } catch (error) {
+    console.error('⚠️ Cron job initialization failed:', error.message);
+    console.log('⚠️ Server will continue without scheduled notifications');
+  }
 })
-.catch((err) => console.error("❌ MongoDB connection error:", err));
+.catch((err) => {
+  console.error("❌ MongoDB connection error:", err);
+  console.log('⚠️ Server will continue without database connection');
+});
 
 // Health check route for debugging CORS
 app.get('/api/health', (req, res) => {
@@ -237,15 +246,23 @@ app.get('/', (req, res) => {
   res.send('✅ Salon API is running!');
 });
 
-// Global error handlers
+// Global error handlers - Production-safe (no process.exit)
 process.on('uncaughtException', (error) => {
   console.error('❌ Uncaught Exception:', error);
-  process.exit(1);
+  if (process.env.NODE_ENV !== 'production') {
+    process.exit(1);
+  } else {
+    console.log('⚠️ Production mode: Server continuing despite error');
+  }
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
+  if (process.env.NODE_ENV !== 'production') {
+    process.exit(1);
+  } else {
+    console.log('⚠️ Production mode: Server continuing despite error');
+  }
 });
 
 // Graceful shutdown
@@ -255,7 +272,7 @@ process.on('SIGTERM', () => {
 });
 
 // Start server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server is running at http://localhost:${PORT}`);
   if (process.env.NODE_ENV === 'production') {
@@ -270,6 +287,8 @@ server.on('error', (error) => {
   console.error('❌ Server error:', error);
   if (error.code === 'EADDRINUSE') {
     console.error(`❌ Port ${PORT} is already in use`);
-    process.exit(1);
+    if (process.env.NODE_ENV !== 'production') {
+      process.exit(1);
+    }
   }
 });

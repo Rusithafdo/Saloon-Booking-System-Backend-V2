@@ -33,6 +33,10 @@ const appointmentSchema = new mongoose.Schema({
   timestamps: true // Automatically adds createdAt and updatedAt fields
 });
 
+// Add indexes for faster queries
+appointmentSchema.index({ salonId: 1, date: 1 });
+appointmentSchema.index({ professionalId: 1 });
+appointmentSchema.index({ status: 1 });
 
 module.exports = mongoose.model("Appointment", appointmentSchema);
 
